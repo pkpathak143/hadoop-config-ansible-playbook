@@ -1,0 +1,97 @@
+- hosts: all
+  vars:
+    - dir: "/rpm-temp"
+    - hadoop: "hadoop-1.2.1-1.x86_64.rpm"
+    - jdk: "jdk-8u171-linux-x64.rpm"
+ 
+  tasks:
+    - name: "Creating a Directory for the RPM file"
+      file:
+        state: directory
+        path: "{{ dir }}"
+    - name: "Copying the Hadoop-rpm file"
+      copy:
+        src: "/root/{{ hadoop }}"
+        dest: "{{ dir }}/{{ hadoop }}"
+    - name: "Copying the JDK-rpm file"
+      copy:
+        src: "/root/{{ jdk }}"
+        dest: "{{ dir }}/{{ jdk }}"
+
+    - name: "Installing Hadoop"
+      yum:
+        name: "{{ dir }}/{{ hadoop }}"
+        state: present
+    - name: "Installing JDK"
+      yum:
+        name: "{{ dir }}/{{ jdk }}"
+        state: present 
+
+
+- name: "Configuring Master"
+  hosts: master
+  vars:
+    - core_file: "/root/task-11/master/core-site.xml"
+    - hdfs_file: "/root/task-11/master/hdfs-site.xml"
+    - dest_core: "/etc/hadoop/core-site.xml"
+    - dest_hdfs: "/etc/hadoop/hdfs-site.xml"
+    - dir: "/namenode"
+
+  tasks:
+    - name: "Creating a Directory"
+      file:
+        state: directory
+        path: "{{ dir }}"
+    - name: "Copying the core-site.xml file "
+      copy:
+        src: "{{ core_file }}"
+        dest: "{{ dest_core }}"
+    - name: "Copying the hdfs-site.xml file "
+      copy:
+        src: "{{ hdfs_file }}"
+        dest: "{{ dest_hdfs }}"
+    - name: "Formating the directory"
+      command: "echo Y | hadoop namenode -format"
+    - name: "Starting NameNode services"
+      command: "hadoop-daemon.sh start namenode"
+    - name: "Check the service is running or not"
+      command: "jps"
+      register: jps
+    - debug:
+        var: jps.stdout_lines
+
+- name: "Configuring Slave"
+  hosts: slave
+  vars:
+    - core_file: "/root/task-11/slave/core-site.xml"
+    - hdfs_file: "/root/task-11/slave/hdfs-site.xml"
+    - dest_core: "/etc/hadoop/core-site.xml"
+    - dest_hdfs: "/etc/hadoop/hdfs-site.xml"
+    - dir: "/datanode1"
+
+  tasks:
+    - name: "Creating a Directory"
+      file:
+        state: directory
+        path: "{{ dir }}"
+    - name: "Copying the core-site.xml file "
+      copy:
+        src: "{{ core_file }}"
+        dest: "{{ dest_core }}"
+    - name: "Copying the hdfs-site.xml file "
+      copy:
+        src: "{{ hdfs_file }}"
+        dest: "{{ dest_hdfs }}"
+    - name: "Starting DataNode services"
+      command: "hadoop-daemon.sh start datanode"
+    - name: "Check the service is running or not"
+      command: "jps"
+      register: jps
+    - debug:
+        var: jps.stdout_lines
+
+    - name: "Check the cluster report"
+      command: "hadoop dfsadmin -report"
+      register: report
+    - debug:
+        var: report.stdout_lines
